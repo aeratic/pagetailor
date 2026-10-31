@@ -140,6 +140,14 @@ A user asks a question ("how did sales go this week?") and the agent composes a 
 
 Both go through the gate with the user's role first. In `pagetailor dev` use the "Ask…" box: `POST /api/ask` `{ user, role, request }` (503 without `ANTHROPIC_API_KEY`), `POST /api/ask/keep` and `POST /api/ask/pin` with `{ user, role, title, tree, why }`.
 
+## Studio
+
+`pagetailor dev` has two views in the top bar: **Preview** (the app as rendered, with the editor and agent boxes) and **Studio**, a visual editor for the whole `pagetailor/` project (`http://localhost:4747/?view=studio`). The first tab, **App**, edits `manifest.yaml`: name, home, navigation position, pages (adding one creates `pages/<slug>.yaml` with an empty `layout/stack`; the home page cannot be removed), roles (a role still used as a page owner or by a data source cannot be removed) and page owners.
+
+The files stay the source of truth: each tab loads its file into a draft, the YAML pane at the bottom shows the draft as it will be written, and **Save** writes the file through the same validator as `pagetailor validate` (errors are shown in red and nothing is written). Every save is versioned under `.history/files/<name>/NNNN.json` with the content before and after and a `why`; **Undo** restores the previous content as a new version. The **auto-save** checkbox saves 1.5 s after the last change.
+
+Routes: `GET /api/project`, `GET|PUT|DELETE /api/files/<name>`, `GET /api/files/<name>/history`, `POST /api/files/<name>/undo`, where `<name>` is `manifest`, `tokens`, `data-catalog`, `components/registry`, `pages/<slug>` or `overrides/<name>`. The same functions are exported: `readProjectFile`, `writeProjectFile`, `deleteProjectFile`, `listFileHistory`, `undoFile`, `scaffoldSource`, `scaffoldComponent`.
+
 ## Status
 
 0.4: engine, CLI (`init`, `validate`, `registry`, `dev`), history with rollback, proposals with owner approval, reorder editor, agent with a pluggable model adapter, pages as answers.

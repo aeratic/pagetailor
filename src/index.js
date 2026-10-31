@@ -16,3 +16,4 @@ export { writeRegistryFile } from "./registry-file.js";
 export { tokensToCss } from "./tokens.js";
 export { describeCatalog, describePage, buildAgentPrompt, parseAgentReply, runAgent, buildAskPrompt, runAsk, keepAnswer, pinAnswer } from "./agent.js";
 export { anthropicComplete } from "./llm.js";
+export { readProjectFile, writeProjectFile, deleteProjectFile, listFileHistory, undoFile, scaffoldSource, scaffoldComponent, readProject } from "./files.js";

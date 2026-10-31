@@ -35,8 +35,9 @@ test("dev server answers /api/page and /bundle.js", async () => {
     const r = await (await fetch(`http://localhost:${port}/api/page/home?user=giulia&role=marketing`)).json();
     assert.deepEqual(r.errors, []); assert.equal(r.page, "home"); assert.ok(r.spec.root);
     const b = await (await fetch(`http://localhost:${port}/bundle.js`)).text();
-    assert.ok(b.length > 10000); assert.match(b, /createRoot/);
-    const html = await (await fetch(`http://localhost:${port}/`)).text();
+    assert.ok(b.length > 10000); assert.match(b, /createRoot/); assert.doesNotMatch(b.slice(0, 2000), /Could not resolve|Build failed/); assert.match(b, /Studio/);
+    const home = await fetch(`http://localhost:${port}/`); assert.equal(home.status, 200);
+    const html = await home.text();
     assert.match(html, /--pt-color-primary/);
     const ov = await (await fetch(`http://localhost:${port}/api/override/user-giulia`)).json();
     assert.equal(ov.extends, "home"); assert.equal(ov.patches[0].op, "set-areas");
@@ -56,6 +57,22 @@ test("dev server answers /api/page and /bundle.js", async () => {
     assert.equal(ag.status, 503); assert.match((await ag.json()).error, /ANTHROPIC_API_KEY/);
     const ask = await fetch(`http://localhost:${port}/api/ask`, { method: "POST", body: JSON.stringify({ user: "giulia", role: "marketing", request: "x" }) });
     assert.equal(ask.status, 503); assert.match((await ask.json()).error, /ANTHROPIC_API_KEY/);
+    const base = `http://localhost:${port}`;
+    const proj = await (await fetch(`${base}/api/project`)).json();
+    assert.equal(proj.manifest.home, "home"); assert.deepEqual(proj.pages, ["home"]); assert.ok(proj.catalog["sales.total"]); assert.ok(proj.registry["layout/grid"]); assert.ok(proj.tokens); assert.ok(proj.overrides.includes("user-giulia"));
+    const put = (name, b) => fetch(`${base}/api/files/${name}`, { method: "PUT", body: JSON.stringify(b) });
+    const m = (await (await fetch(`${base}/api/files/manifest`)).json()).value;
+    const w = await put("manifest", { value: { ...m, roles: [...m.roles, "sales"] }, why: "test" });
+    assert.equal(w.status, 200);
+    assert.ok((await (await fetch(`${base}/api/files/manifest`)).json()).value.roles.includes("sales"));
+    const hist = await (await fetch(`${base}/api/files/manifest/history`)).json();
+    assert.equal(hist[0].why, "test");
+    assert.equal((await (await fetch(`${base}/api/files/manifest/undo`, { method: "POST" })).json()).ok, true);
+    assert.deepEqual((await (await fetch(`${base}/api/files/manifest`)).json()).value.roles, m.roles);
+    const bad = await put("manifest", { value: { ...m, owners: { home: ["ghost"] } } });
+    assert.equal(bad.status, 400); const be = await bad.json(); assert.equal(be.ok, false); assert.match(be.errors.join(), /ghost/);
+    assert.equal((await fetch(`${base}/api/files/..%2Fsecret`)).status, 400);
+    assert.equal((await fetch(`${base}/api/files/pages/home`, { method: "DELETE" })).status, 400);
   } finally { child.kill("SIGKILL"); await rm(dir, { recursive: true, force: true }); }
 });
 

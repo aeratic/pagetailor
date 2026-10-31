@@ -13,6 +13,8 @@ export async function loadYaml(path) {
   return value;
 }
 
+export function forgetYaml(path) { cache.delete(path); }
+
 export async function exists(path) { try { await stat(path); return true; } catch { return false; } }
 
 export async function loadProject(root) {
