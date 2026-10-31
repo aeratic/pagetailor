@@ -1,6 +1,6 @@
 {
   "name": "@aeratic/pagetailor",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Pages as data: declarative YAML pages, typed data catalog, per-user overrides, validated for AI agents. Renders with json-render.",
   "license": "MIT",
   "author": "Aeratic <info@aeratic.com>",
