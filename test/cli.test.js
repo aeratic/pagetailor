@@ -73,7 +73,19 @@ test("dev server answers /api/page and /bundle.js", async () => {
     assert.equal(bad.status, 400); const be = await bad.json(); assert.equal(be.ok, false); assert.match(be.errors.join(), /ghost/);
     assert.equal((await fetch(`${base}/api/files/..%2Fsecret`)).status, 400);
     assert.equal((await fetch(`${base}/api/files/pages/home`, { method: "DELETE" })).status, 400);
+    // bound to localhost only: the same port on a non-loopback interface is not reachable
+    const { networkInterfaces } = await import("node:os");
+    const ext = Object.values(networkInterfaces()).flat().find(i => i.family === "IPv4" && !i.internal)?.address;
+    if (ext) await assert.rejects(fetch(`http://${ext}:${port}/api/project`, { signal: AbortSignal.timeout(3000) }));
   } finally { child.kill("SIGKILL"); await rm(dir, { recursive: true, force: true }); }
+});
+
+test("help and --version", async () => {
+  const pkg = JSON.parse(await readFile(join(dirname(cli), "..", "package.json"), "utf8"));
+  assert.equal((await run("node", [cli, "--version"])).stdout.trim(), pkg.version);
+  assert.equal((await run("node", [cli, "-v"])).stdout.trim(), pkg.version);
+  for (const a of [[], ["help"], ["--help"]]) assert.match((await run("node", [cli, ...a])).stdout, /pagetailor <command>/);
+  await assert.rejects(run("node", [cli, "nope"]), e => e.code === 1 && /unknown command "nope"/.test(e.stderr));
 });
 
 test("init writes components/index.js; registry is idempotent", async () => {

@@ -1,6 +1,5 @@
 import { join } from "node:path";
-import { writeFile } from "node:fs/promises";
-import { stringify } from "yaml";
+import { writeYaml } from "./yaml-write.js";
 import { loadProject, loadPage, loadOverrides, loadYaml, exists, listPages } from "./loader.js";
 import { applyOverride, mergePatch } from "./overrides.js";
 import { splitRef, validateTree } from "./validator.js";
@@ -185,10 +184,10 @@ export async function keepAnswer(root, { user, role, title, tree, why }) {
   const taken = new Set([...(await listPages(root)), ...(project.manifest.pages ?? [])]);
   const base = slugify(title); let slug = base;
   for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`;
-  await writeFile(join(root, "pages", `${slug}.yaml`), stringify({ page: slug, title, owner: user, ...(why ? { why } : {}), layout: tree }));
+  await writeYaml(join(root, "pages", `${slug}.yaml`), { page: slug, title, owner: user, ...(why ? { why } : {}), layout: tree });
   const mfile = join(root, "manifest.yaml");
   const manifest = (await loadYaml(mfile)) ?? {};
-  await writeFile(mfile, stringify({ ...manifest, pages: [...(manifest.pages ?? []), slug] }));
+  await writeYaml(mfile, { ...manifest, pages: [...(manifest.pages ?? []), slug] });
   return { ok: true, page: slug };
 }
 

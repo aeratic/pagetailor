@@ -1,18 +1,14 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { stringify } from "yaml";
+import { writeYaml, appendVersion, pad } from "./yaml-write.js";
 
 // Every write to an override is a new numbered version under .history/<name>/NNNN.json.
 // The current override file is rewritten from the version being committed.
 const dirOf = (root, name) => join(root, ".history", name);
-const pad = n => String(n).padStart(4, "0");
 
 export async function commitOverride(root, name, override, { author = "system", status = "applied" } = {}) {
-  const dir = dirOf(root, name); await mkdir(dir, { recursive: true });
-  const n = (await readdir(dir)).length + 1;
-  const entry = { version: n, at: new Date().toISOString(), author, status, override };
-  await writeFile(join(dir, `${pad(n)}.json`), JSON.stringify(entry, null, 2));
-  if (status === "applied") await writeFile(join(root, "overrides", `${name}.yaml`), stringify(override));
+  const entry = await appendVersion(dirOf(root, name), version => ({ version, at: new Date().toISOString(), author, status, override }));
+  if (status === "applied") await writeYaml(join(root, "overrides", `${name}.yaml`), override);
   return entry;
 }
 

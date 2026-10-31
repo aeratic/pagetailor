@@ -6,6 +6,7 @@ import { transform } from "esbuild";
 import { tempProject } from "./helpers.js";
 import { readProjectFile, writeProjectFile, deleteProjectFile, listFileHistory, undoFile, scaffoldSource, scaffoldComponent, isProjectFile } from "../src/files.js";
 import { loadSources } from "../src/loader.js";
+import { validate } from "../src/validate.js";
 
 test("allowlist of project file names", () => {
   for (const n of ["manifest", "tokens", "data-catalog", "components/registry", "pages/home", "overrides/user-giulia"]) assert.ok(isProjectFile(n), n);
@@ -105,4 +106,19 @@ test("scaffoldSource and scaffoldComponent are idempotent", async () => {
     const k = await scaffoldComponent(root, "layout/box", { container: true });
     assert.match(await readFile(k.path, "utf8"), /\{children\}/);
   } finally { await cleanup(); }
+});
+
+test("saving a page also checks the overrides that extend it", async () => {
+  const p = await tempProject();
+  try {
+    const page = await readProjectFile(p.root, "pages/home");
+    const grid = page.layout.children[0];
+    grid.children.tasks = grid.children.todo; delete grid.children.todo;
+    grid.props.areas = grid.props.areas.replace(/todo/g, "tasks");
+    const r = await writeProjectFile(p.root, "pages/home", page);
+    assert.equal(r.ok, false);
+    assert.match(r.errors.join("\n"), /overrides\/user-giulia: .*area "todo" has no child/);
+    assert.match(r.errors.join("\n"), /overrides\/role-magazzino: /);
+    assert.equal(await validate(p.dir), true, "nothing was written");
+  } finally { await p.cleanup(); }
 });

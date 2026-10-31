@@ -12,6 +12,9 @@ const msg = e => typeof e === "string" ? e : `${e.path}: ${e.message}`;
 async function gate(root, name, override, role) {
   if (!override?.extends) return ["override.extends is required"];
   const project = await loadProject(root);
+  const roles = project.manifest.roles ?? [];
+  if (role != null && !roles.includes(role)) return [`unknown role "${role}"`];
+  if (name.startsWith("role-") && !roles.includes(name.slice(5))) return [`unknown role "${name.slice(5)}"`];
   let page; try { page = await loadPage(root, override.extends); } catch { return [`page "${override.extends}" not found`]; }
   const target = name.startsWith("role-") ? name.slice(5) : role ?? null;
   let tree = page.layout;
@@ -24,7 +27,9 @@ async function pendingEntry(root, name, version, approverRole) {
   const entry = (await listHistory(root, name)).find(e => e.version === version);
   if (!entry || entry.status !== "pending") return { errors: [`${name} v${version} is not pending`] };
   const page = entry.override?.extends;
-  const owners = [].concat((await loadProject(root)).manifest.owners?.[page] ?? []);
+  const manifest = (await loadProject(root)).manifest;
+  if (approverRole == null || !(manifest.roles ?? []).includes(approverRole)) return { errors: [`unknown role "${approverRole ?? "none"}"`] };
+  const owners = [].concat(manifest.owners?.[page] ?? []);
   if (!owners.includes(approverRole)) return { errors: [`role ${approverRole ?? "none"} cannot approve changes to page ${page}`] };
   return { entry };
 }

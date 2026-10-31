@@ -15,7 +15,8 @@ import { isProjectFile, readProjectFile, writeProjectFile, deleteProjectFile, li
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-export async function dev(cwd, { port = 4747 } = {}) {
+// Binds to localhost only: the API writes project files and has no authentication. Pass host to expose it.
+export async function dev(cwd, { port = 4747, host = "127.0.0.1" } = {}) {
   const root = join(cwd, "pagetailor");
   // Bundle one React only: the project's if installed, otherwise the one shipped with this package.
   const reqProject = createRequire(join(cwd, "package.json")), reqSelf = createRequire(import.meta.url);
@@ -142,7 +143,7 @@ export async function dev(cwd, { port = 4747 } = {}) {
     console.error(`pagetailor: port ${port} is already in use (try --port ${port + 1})`);
     process.exit(1);
   });
-  await new Promise(r => server.listen(port, r));
-  console.log(`pagetailor dev  http://localhost:${port}\n  pages from ${root}\n  ?page=home&user=giulia&role=marketing`);
+  await new Promise(r => server.listen(port, host, r));
+  console.log(`pagetailor dev  http://${host === "0.0.0.0" || host === "::" ? "localhost" : host}:${port}\n  pages from ${root}\n  ?page=home&user=giulia&role=marketing`);
   return server;
 }

@@ -4,11 +4,13 @@ import { DataTab } from "./tabs/DataTab.jsx";
 import { ComponentsTab } from "./tabs/ComponentsTab.jsx";
 import { TokensTab } from "./tabs/TokensTab.jsx";
 import { PeopleTab } from "./tabs/PeopleTab.jsx";
+import { PagesTab } from "./tabs/PagesTab.jsx";
 import { bar } from "./ui.jsx";
 
 // Tabs over the project files. Each tab gets { project, reload, registry }; later tabs add entries here.
 const TABS = [
   { id: "app", label: "App", Component: AppTab },
+  { id: "pages", label: "Pages", Component: PagesTab },
   { id: "data", label: "Data", Component: DataTab },
   { id: "components", label: "Components", Component: ComponentsTab },
   { id: "tokens", label: "Tokens", Component: TokensTab },

@@ -2,13 +2,55 @@
 
 Pages as data. Define your app's pages in YAML, bind them to a typed catalog of components and data sources, tailor them per role and per person with small patches, and let an AI agent compose them through a validation gate. Rendering is done by [json-render](https://github.com/vercel-labs/json-render).
 
-```
-npm init -y
+## Start here
+
+```bash
+# 1. Install and create the project
 npm install @aeratic/pagetailor react react-dom
 npx pagetailor init
+
+# 2. Check that everything fits together
 npx pagetailor validate
-npx pagetailor dev        # http://localhost:4747/?user=giulia&role=marketing
+
+# 3. Run the preview and the Studio
+npx pagetailor dev
+#   http://localhost:4747/?user=giulia&role=marketing   the page as Giulia sees it
+#   http://localhost:4747/?role=magazzino               the same page for the warehouse role
+#   http://localhost:4747/?view=studio                  visual editor of the whole project
+
+# 4. Enable the AI agent
+ANTHROPIC_API_KEY=sk-... npx pagetailor dev
+
+# 5. After editing components/registry.yaml, regenerate the component index
+npx pagetailor registry
 ```
+
+Three things to try in the first ten minutes:
+
+- **Change one user's layout.** Open `pagetailor/overrides/user-giulia.yaml`, move a row in `areas`, save: the browser reloads with her new page. Nobody else's page changes.
+- **Break something on purpose.** Put a data source that does not exist in `pages/home.yaml`. `validate` refuses it, and in the preview that widget becomes a red box with the reason while the rest of the page still renders.
+- **Ask the agent.** Type "put the KPI at the top" in the *Change this page…* box. The patch it writes is an ordinary override, checked by the same validator as your own edits.
+
+What pagetailor is not: a CMS, a page builder for end users, or an authenticated server. It is an engine for declarative pages with a gate that humans, the Studio and agents all go through. `pagetailor dev` writes project files over an unauthenticated API and binds to localhost only.
+
+## CLI
+
+| Command | What it does |
+| --- | --- |
+| `pagetailor init [--force]` | create `pagetailor/` with manifest, tokens, data catalog, a sample page, overrides and base components |
+| `pagetailor validate` | check manifest, pages and overrides against the component registry and the data catalog; exit 1 on problems |
+| `pagetailor registry` | write `pagetailor/components/index.js` exporting every component in `registry.yaml` |
+| `pagetailor dev [--port 4747] [--host 127.0.0.1]` | preview server with live reload and the Studio; pass `--host 0.0.0.0` to expose it |
+| `pagetailor help`, `pagetailor --version` | this text, the version |
+
+## Contents
+
+- [What `init` creates](#what-init-creates)
+- [A page](#a-page), [An override](#an-override), [The gate](#the-gate), [Component props](#component-props)
+- [Next.js](#nextjs), [Caching](#caching)
+- [Proposals and approval](#proposals-and-approval), [Reorder editor](#reorder-editor)
+- [The agent](#the-agent), [Pages as answers](#pages-as-answers)
+- [Studio](#studio), [Status](#status)
 
 ## What `init` creates
 
@@ -106,6 +148,8 @@ Changes go through `propose(root, { name, override, author, role })`, which firs
 - Each page lists the roles allowed to approve it in `manifest.yaml`: `owners: { home: [admin] }`.
 - `approve(root, { name, version, approver, approverRole })` re-runs the gate and commits a new applied version with `approvedFrom`; the proposal is marked `approved`. `reject(root, { name, version, approver, approverRole, reason })` marks it `rejected`. `listPending(root)` lists open proposals, newest first.
 
+Roles named in a proposal (the target role of a `role-*` override, the `role` of a user proposal, the `approverRole` of an approval) must exist in `manifest.roles`.
+
 Dev server routes: `POST /api/propose`, `GET /api/pending`, `POST /api/approve`, `POST /api/reject` (400 with `{ ok: false, errors }` when the gate or owner check fails). `POST /api/override` still commits directly.
 
 ## Reorder editor
@@ -144,7 +188,9 @@ Both go through the gate with the user's role first. In `pagetailor dev` use the
 
 `pagetailor dev` has two views in the top bar: **Preview** (the app as rendered, with the editor and agent boxes) and **Studio**, a visual editor for the whole `pagetailor/` project (`http://localhost:4747/?view=studio`). The first tab, **App**, edits `manifest.yaml`: name, home, navigation position, pages (adding one creates `pages/<slug>.yaml` with an empty `layout/stack`; the home page cannot be removed), roles (a role still used as a page owner or by a data source cannot be removed) and page owners.
 
-The files stay the source of truth: each tab loads its file into a draft, the YAML pane at the bottom shows the draft as it will be written, and **Save** writes the file through the same validator as `pagetailor validate` (errors are shown in red and nothing is written). Every save is versioned under `.history/files/<name>/NNNN.json` with the content before and after and a `why`; **Undo** restores the previous content as a new version. The **auto-save** checkbox saves 1.5 s after the last change.
+The **Pages** tab edits `pages/<slug>.yaml`: a tree of the page's components (with the child name under a grid and the bound data source) and an inspector for the selected node. The component select lists every `name@version` in the registry (switching keeps the props the new schema still declares), props are form fields generated from the registry schema (free JSON when a component has none), the data select offers only the catalog sources whose type the component accepts, with their params. Containers can add, remove and reorder children; a grid renames and removes named children together with their cells in `areas`, and a new child gets a full-width row. The tree is validated live with the same `validateTree` as the server, so problems show before Save.
+
+The files stay the source of truth: each tab loads its file into a draft, the YAML pane at the bottom shows the draft as it will be written, and **Save** writes the file through the same validator as `pagetailor validate` (errors are shown in red and nothing is written; saving a page also re-applies every override that extends it, so renaming a child that an override targets is refused with the override's name). Saves rewrite the file keeping its top-level comments. Every save is versioned under `.history/files/<name>/NNNN.json` with the content before and after and a `why` (versions are allocated exclusively, so concurrent writers never collide); **Undo** restores the previous content as a new version. The **auto-save** checkbox saves 1.5 s after the last change.
 
 Routes: `GET /api/project`, `GET|PUT|DELETE /api/files/<name>`, `GET /api/files/<name>/history`, `POST /api/files/<name>/undo`, where `<name>` is `manifest`, `tokens`, `data-catalog`, `components/registry`, `pages/<slug>` or `overrides/<name>`. The same functions are exported: `readProjectFile`, `writeProjectFile`, `deleteProjectFile`, `listFileHistory`, `undoFile`, `scaffoldSource`, `scaffoldComponent`.
 

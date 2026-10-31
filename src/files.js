@@ -1,6 +1,8 @@
 import { mkdir, readdir, readFile, writeFile, rm } from "node:fs/promises";
 import { join, dirname } from "node:path";
-import { parse, Document, visit, isScalar } from "yaml";
+import { parse } from "yaml";
+import { toYaml, writeYaml, appendVersion } from "./yaml-write.js";
+export { toYaml };
 import { loadProject, listPages, listOverrides, exists, forgetYaml } from "./loader.js";
 import { validateTree, validateManifest } from "./validator.js";
 import { clearResolveCache } from "./resolver.js";
@@ -10,7 +12,6 @@ import { applyOverride } from "./overrides.js";
 // under .history/files/<name with / as __>/NNNN.json with the previous and the new content.
 const FIXED = { manifest: "manifest.yaml", tokens: "tokens.yaml", "data-catalog": "data-catalog.yaml", "components/registry": "components/registry.yaml" };
 const SLUG = /^[a-z0-9-]+$/;
-const pad = n => String(n).padStart(4, "0");
 const msg = e => typeof e === "string" ? e : `${e.path}: ${e.message}`;
 
 export function isProjectFile(name) {
@@ -24,13 +25,6 @@ const pathOf = (root, name) => {
   return join(root, FIXED[name] ?? `${name}.yaml`);
 };
 const historyDir = (root, name) => join(root, ".history", "files", name.replace("/", "__"));
-
-// Multiline strings (grid areas) are written as literal blocks so files stay readable.
-export function toYaml(value) {
-  const doc = new Document(value);
-  visit(doc, { Scalar(_, node) { if (typeof node.value === "string" && node.value.includes("\n")) node.type = "BLOCK_LITERAL"; } });
-  return doc.toString();
-}
 
 export async function readProjectFile(root, name) {
   const p = pathOf(root, name);
@@ -46,7 +40,15 @@ async function validateFile(root, name, value) {
   if (name === "manifest") return validateManifest(value, pages).map(msg);
   if (name.startsWith("pages/")) {
     if (!value.layout) return [`${name}: layout is required`];
-    return validateTree(value.layout, project).map(msg);
+    const errors = validateTree(value.layout, project).map(msg);
+    // the overrides extending this page must still apply: a renamed child would break them silently
+    for (const ov of await listOverrides(root)) {
+      const o = await readProjectFile(root, `overrides/${ov}`);
+      if (!o || (o.extends && o.extends !== name.slice(6))) continue;
+      const r = applyOverride(value.layout, { name: ov, ...o });
+      for (const e of [...r.errors, ...validateTree(r.tree, project, ov.startsWith("role-") ? { role: ov.slice(5) } : {})]) errors.push(`overrides/${ov}: ${msg(e)}`);
+    }
+    return errors;
   }
   if (name.startsWith("overrides/")) {
     // same check as the proposals gate; a role override is validated for its role, a user override with no role
@@ -68,17 +70,13 @@ async function validateFile(root, name, value) {
 }
 
 async function record(root, name, before, after, { author = "studio", why = "" } = {}) {
-  const dir = historyDir(root, name); await mkdir(dir, { recursive: true });
-  const version = (await readdir(dir)).filter(f => f.endsWith(".json")).length + 1;
-  const entry = { version, at: new Date().toISOString(), author, why, before, after };
-  await writeFile(join(dir, `${pad(version)}.json`), JSON.stringify(entry, null, 2));
-  return entry;
+  return appendVersion(historyDir(root, name), version => ({ version, at: new Date().toISOString(), author, why, before, after }));
 }
 
 async function put(root, name, value) {
   const p = pathOf(root, name);
   if (value === null) await rm(p, { force: true });
-  else { await mkdir(dirname(p), { recursive: true }); await writeFile(p, toYaml(value)); }
+  else { await mkdir(dirname(p), { recursive: true }); await writeYaml(p, value); }
   forgetYaml(p); clearResolveCache();
 }
 
