@@ -1,5 +1,7 @@
 # @aeratic/pagetailor
 
+[![npm](https://img.shields.io/npm/v/@aeratic/pagetailor)](https://www.npmjs.com/package/@aeratic/pagetailor) [![test](https://github.com/aeratic/pagetailor/actions/workflows/test.yml/badge.svg)](https://github.com/aeratic/pagetailor/actions/workflows/test.yml) [![license](https://img.shields.io/npm/l/@aeratic/pagetailor)](LICENSE)
+
 Pages as data. Define your app's pages in YAML, bind them to a typed catalog of components and data sources, tailor them per role and per person with small patches, and let an AI agent compose them through a validation gate. Rendering is done by [json-render](https://github.com/vercel-labs/json-render).
 
 ## Start here
