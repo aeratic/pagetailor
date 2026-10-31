@@ -29,7 +29,7 @@ test("dev server answers /api/page and /bundle.js", async () => {
   await run("node", [cli, "init"], { cwd: dir });
   const { spawn } = await import("node:child_process");
   const port = 4800 + Math.floor(Math.random() * 500);
-  const child = spawn("node", [cli, "dev", "--port", String(port)], { cwd: dir, env: { ...process.env, ANTHROPIC_API_KEY: "" }, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn("node", [cli, "dev", "--port", String(port)], { cwd: dir, env: { ...process.env, ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "", GEMINI_API_KEY: "", GOOGLE_API_KEY: "", GROQ_API_KEY: "", MISTRAL_API_KEY: "", DEEPSEEK_API_KEY: "", XAI_API_KEY: "", OPENROUTER_API_KEY: "", PAGETAILOR_PROVIDER: "" }, stdio: ["ignore", "pipe", "pipe"] });
   try {
     await new Promise((res, rej) => { child.stdout.on("data", d => { if (String(d).includes("pagetailor dev")) res(); }); child.on("exit", rej); setTimeout(() => rej(new Error("dev did not start")), 15000); });
     const r = await (await fetch(`http://localhost:${port}/api/page/home?user=giulia&role=marketing`)).json();
@@ -54,9 +54,9 @@ test("dev server answers /api/page and /bundle.js", async () => {
     const prompt = await (await fetch(`http://localhost:${port}/api/agent/prompt?page=home&user=giulia&role=marketing&request=ciao`)).json();
     assert.match(prompt.system, /charts\/line@1\.0\.0/); assert.equal(prompt.user, "ciao");
     const ag = await fetch(`http://localhost:${port}/api/agent`, { method: "POST", body: JSON.stringify({ page: "home", user: "giulia", request: "x" }) });
-    assert.equal(ag.status, 503); assert.match((await ag.json()).error, /ANTHROPIC_API_KEY/);
+    assert.equal(ag.status, 503); assert.match((await ag.json()).error, /ANTHROPIC_API_KEY.*OPENAI_API_KEY/);
     const ask = await fetch(`http://localhost:${port}/api/ask`, { method: "POST", body: JSON.stringify({ user: "giulia", role: "marketing", request: "x" }) });
-    assert.equal(ask.status, 503); assert.match((await ask.json()).error, /ANTHROPIC_API_KEY/);
+    assert.equal(ask.status, 503); assert.match((await ask.json()).error, /ANTHROPIC_API_KEY.*OPENAI_API_KEY/);
     const base = `http://localhost:${port}`;
     const proj = await (await fetch(`${base}/api/project`)).json();
     assert.equal(proj.manifest.home, "home"); assert.deepEqual(proj.pages, ["home"]); assert.ok(proj.catalog["sales.total"]); assert.ok(proj.registry["layout/grid"]); assert.ok(proj.tokens); assert.ok(proj.overrides.includes("user-giulia"));

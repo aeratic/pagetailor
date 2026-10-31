@@ -10,7 +10,7 @@ import { commitOverride, listHistory, rollback } from "./history.js";
 import { propose, listPending, approve, reject } from "./proposals.js";
 import { tokensToCss } from "./tokens.js";
 import { buildAgentPrompt, runAgent, runAsk, keepAnswer, pinAnswer } from "./agent.js";
-import { anthropicComplete } from "./llm.js";
+import { completeFromEnv, LLM_HELP } from "./llm.js";
 import { isProjectFile, readProjectFile, writeProjectFile, deleteProjectFile, listFileHistory, undoFile, readProject, scaffoldSource, scaffoldComponent } from "./files.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -101,16 +101,16 @@ export async function dev(cwd, { port = 4747, host = "127.0.0.1" } = {}) {
         return json(res, 200, await buildAgentPrompt(root, { page: q.page || "home", user: q.user || undefined, role: q.role || undefined, request: q.request ?? "" }));
       }
       if (url.pathname === "/api/agent" && req.method === "POST") {
-        if (!process.env.ANTHROPIC_API_KEY) return json(res, 503, { error: "set ANTHROPIC_API_KEY to use the agent" });
+        const complete = completeFromEnv();
+        if (!complete) return json(res, 503, { error: LLM_HELP });
         const b = await body(req);
-        const complete = anthropicComplete({ apiKey: process.env.ANTHROPIC_API_KEY, ...(process.env.PAGETAILOR_MODEL ? { model: process.env.PAGETAILOR_MODEL } : {}) });
         const r = await runAgent(root, { page: b.page, user: b.user, role: b.role || undefined, request: b.request, complete });
         return json(res, r.ok ? 200 : 400, r);
       }
       if (url.pathname === "/api/ask" && req.method === "POST") {
-        if (!process.env.ANTHROPIC_API_KEY) return json(res, 503, { error: "set ANTHROPIC_API_KEY to use the agent" });
+        const complete = completeFromEnv();
+        if (!complete) return json(res, 503, { error: LLM_HELP });
         const b = await body(req);
-        const complete = anthropicComplete({ apiKey: process.env.ANTHROPIC_API_KEY, ...(process.env.PAGETAILOR_MODEL ? { model: process.env.PAGETAILOR_MODEL } : {}) });
         const r = await runAsk(root, { user: b.user || undefined, role: b.role || undefined, request: b.request, complete });
         return json(res, r.ok ? 200 : 400, r);
       }

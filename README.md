@@ -18,8 +18,10 @@ npx pagetailor dev
 #   http://localhost:4747/?role=magazzino               the same page for the warehouse role
 #   http://localhost:4747/?view=studio                  visual editor of the whole project
 
-# 4. Enable the AI agent
+# 4. Enable the AI agent with any provider: Anthropic, OpenAI, Gemini, Groq, Mistral, DeepSeek, xAI, OpenRouter, Ollama…
 ANTHROPIC_API_KEY=sk-... npx pagetailor dev
+OPENAI_API_KEY=sk-... npx pagetailor dev
+PAGETAILOR_PROVIDER=ollama PAGETAILOR_MODEL=llama3.3 npx pagetailor dev
 
 # 5. After editing components/registry.yaml, regenerate the component index
 npx pagetailor registry
@@ -169,9 +171,17 @@ A user asks in natural language ("put the KPI at the top"); the agent turns it i
 3. `runAgent(root, { page, user, role, request, complete })` appends the patches to the user's existing override for that page (same merge rule as the editor) and calls `propose` as `user-<user>`: applied at once for the own user, pending otherwise.
 4. If the gate rejects, the gate errors are sent back once ("The previous patch was rejected: ... Fix it.") and the result is proposed again. The result reports `attempts`.
 
-`complete` is any `async ({ system, user }) => text`, so any model or SDK works; pagetailor depends on none. `anthropicComplete({ apiKey, model })` is a built-in fetch call to the Anthropic Messages API (`claude-sonnet-5-5` by default).
+`complete` is any `async ({ system, user }) => text`, so any model or SDK works; pagetailor depends on none. Built-in adapters over plain `fetch`: `anthropicComplete`, `openaiComplete` (OpenAI and every provider speaking its chat-completions format), `googleComplete` (Gemini). `createComplete({ provider, model, apiKey, baseUrl })` picks one by name: `anthropic`, `openai`, `google`, `groq`, `mistral`, `deepseek`, `xai`, `openrouter`, `ollama` (local, no key) or `compatible` (any URL). `completeFromEnv()` reads the same from the environment and is what `pagetailor dev` uses:
 
-In `pagetailor dev`, set `ANTHROPIC_API_KEY` (and optionally `PAGETAILOR_MODEL`) and use the "Change this page…" box in the header: `POST /api/agent` with `{ page, user, role, request }` (503 without the key). `GET /api/agent/prompt?page=&user=&role=&request=` returns the built prompt for debugging.
+| Variable | Meaning |
+| --- | --- |
+| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `DEEPSEEK_API_KEY`, `XAI_API_KEY`, `OPENROUTER_API_KEY` | the key of the provider to use; with one key set nothing else is needed |
+| `PAGETAILOR_PROVIDER` | force a provider when several keys are set, or choose `ollama` / `compatible` |
+| `PAGETAILOR_MODEL` | the model; defaults exist for anthropic, openai, google, mistral, deepseek, required for the others |
+| `PAGETAILOR_LLM_URL` | base URL for `compatible`, or to override a provider's URL (a proxy, an Ollama on another host) |
+| `PAGETAILOR_LLM_KEY` | the key for `compatible` |
+
+In `pagetailor dev`, set one of the variables above and use the "Change this page…" box in the header: `POST /api/agent` with `{ page, user, role, request }` (503 when no provider is configured). `GET /api/agent/prompt?page=&user=&role=&request=` returns the built prompt for debugging.
 
 ## Pages as answers
 
@@ -182,7 +192,7 @@ A user asks a question ("how did sales go this week?") and the agent composes a 
 3. Keep as page: `keepAnswer(root, { user, role, title, tree, why })` writes `pages/<slug>.yaml` with `owner: <user>` and adds the slug to `manifest.pages` (slugs are made unique with `-2`, `-3`).
 4. Pin to home: `pinAnswer(root, { user, role, title, tree, why })` proposes, as `user-<user>`, an `insert` of a `layout/card` with the answer's widgets into the home's main container; on a grid it gets its own full-width row at the bottom. Same gate and proposal rules as any override.
 
-Both go through the gate with the user's role first. In `pagetailor dev` use the "Ask…" box: `POST /api/ask` `{ user, role, request }` (503 without `ANTHROPIC_API_KEY`), `POST /api/ask/keep` and `POST /api/ask/pin` with `{ user, role, title, tree, why }`.
+Both go through the gate with the user's role first. In `pagetailor dev` use the "Ask…" box: `POST /api/ask` `{ user, role, request }` (503 when no provider is configured), `POST /api/ask/keep` and `POST /api/ask/pin` with `{ user, role, title, tree, why }`.
 
 ## Studio
 
