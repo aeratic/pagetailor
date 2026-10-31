@@ -53,6 +53,6 @@
     "react-dom": "19.2.3"
   },
   "scripts": {
-    "test": "node --no-deprecation --import ./test/jsx-loader.mjs --test test/"
+    "test": "node --no-deprecation --import ./test/jsx-loader.mjs --test test/*.test.js"
   }
 }
