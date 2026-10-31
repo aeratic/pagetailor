@@ -1,0 +1,11 @@
+color:
+  primary: "#1D9E75"
+  surface: "#FFFFFF"
+  background: "#F5F6F8"
+  text: "#1A1A1A"
+  muted: "#6B7280"
+  border: "#E5E7EB"
+  danger: "#C0392B"
+spacing: { sm: 8, md: 16, lg: 24 }
+radius: 8
+font: { base: "Inter, system-ui, sans-serif", size: 15 }

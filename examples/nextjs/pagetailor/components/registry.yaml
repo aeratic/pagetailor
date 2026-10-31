@@ -1,0 +1,47 @@
+# name -> accepted data type (optional), props schema (optional) and versions -> implementation file.
+# Containers accept no data and have `container: true`. Add a new version when props change in an incompatible way.
+# Prop types: string, number, boolean, text, enum[a,b], string[], number[]; a trailing ? makes it optional.
+layout/stack:
+  description: Vertical stack of children
+  container: true
+  props: { gap: string? }
+  versions: { "1.0.0": { impl: ./Stack.jsx } }
+layout/row:
+  description: Horizontal row of children
+  container: true
+  props: { gap: string? }
+  versions: { "1.0.0": { impl: ./Row.jsx } }
+layout/card:
+  description: Card with an optional title wrapping its children
+  container: true
+  props: { title: string? }
+  versions: { "1.0.0": { impl: ./Card.jsx } }
+layout/grid:
+  description: CSS grid with named areas, one named child per area
+  container: true
+  props: { areas: text }
+  versions: { "1.0.0": { impl: ./Grid.jsx } }
+text/block:
+  description: Paragraph of text
+  props: { content: string, muted: boolean? }
+  versions: { "1.0.0": { impl: ./Text.jsx } }
+kpi/number:
+  description: Single money figure with a label
+  accepts: money
+  props: { label: string? }
+  versions: { "1.0.0": { impl: ./Kpi.jsx } }
+charts/line:
+  description: Line chart of a money timeseries
+  accepts: timeseries<money>
+  props: { title: string? }
+  versions: { "1.0.0": { impl: ./LineChart.jsx } }
+tables/simple:
+  description: Simple table of rows
+  accepts: table<any>
+  props: { title: string? }
+  versions: { "1.0.0": { impl: ./Table.jsx } }
+todo/list:
+  description: List of tasks
+  accepts: list<task>
+  props: { title: string? }
+  versions: { "1.0.0": { impl: ./TodoList.jsx } }

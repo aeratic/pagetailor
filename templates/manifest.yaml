@@ -1,0 +1,7 @@
+app: my-app
+home: home
+nav:
+  position: left
+pages: [home]
+owners: { home: [admin] }   # roles that may approve shared changes to a page
+roles: [admin, marketing, magazzino]

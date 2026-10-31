@@ -1,0 +1,6 @@
+extends: home
+why: "Marco è magazzino: vuole le giacenze al posto del grafico"
+patches:
+  - op: replace
+    target: chart
+    with: { ref: tables/simple@1.0.0, data: { source: stock.levels } }

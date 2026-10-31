@@ -1,0 +1,16 @@
+page: home
+layout:
+  ref: layout/card@1.0.0
+  props: { title: "Dashboard" }
+  children:
+    - ref: layout/grid@1.0.0
+      props:
+        areas: |
+          chart  chart
+          table  kpi
+          table  todo
+      children:
+        chart: { ref: charts/line@1.0.0,   props: { title: "Ricavi, ultimi 30 giorni" }, data: { source: analytics.revenue, params: { period: 30d } } }
+        table: { ref: tables/simple@1.0.0, props: { title: "Vendite per zona" }, data: { source: sales.by_region } }
+        kpi:   { ref: kpi/number@1.0.0,    props: { label: "Vendite del mese" }, data: { source: sales.total } }
+        todo:  { ref: todo/list@1.0.0,     props: { title: "Le mie attività" }, data: { source: tasks.mine } }

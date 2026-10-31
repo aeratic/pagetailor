@@ -1,0 +1,6 @@
+app: my-app
+home: home
+nav:
+  position: left
+pages: [home]
+roles: [admin, marketing, magazzino]

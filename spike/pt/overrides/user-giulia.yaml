@@ -1,0 +1,9 @@
+extends: home
+why: "Giulia vuole il KPI grande in alto e il grafico sotto"
+patches:
+  - op: set-areas
+    target: layout/grid
+    areas: |
+      kpi   kpi
+      chart chart
+      table todo

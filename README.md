@@ -1,0 +1,147 @@
+# @aeratic/pagetailor
+
+Pages as data. Define your app's pages in YAML, bind them to a typed catalog of components and data sources, tailor them per role and per person with small patches, and let an AI agent compose them through a validation gate. Rendering is done by [json-render](https://github.com/vercel-labs/json-render).
+
+```
+npm init -y
+npm install @aeratic/pagetailor react react-dom
+npx pagetailor init
+npx pagetailor validate
+npx pagetailor dev        # http://localhost:4747/?user=giulia&role=marketing
+```
+
+## What `init` creates
+
+```
+pagetailor/
+  manifest.yaml         pages, home, navigation, roles
+  tokens.yaml           design tokens -> CSS variables --pt-*
+  data-catalog.yaml     data sources: params, returned type, allowed roles
+  data/sources.mjs      one async function per source (demo data)
+  pages/home.yaml       a page: tree of components, data bindings, grid with named areas
+  overrides/            user-giulia.yaml, role-magazzino.yaml: patches over a page, with a `why`
+  components/           registry.yaml + base components (yours to edit)
+```
+
+## A page
+
+```yaml
+page: home
+layout:
+  ref: layout/card@1.0.0
+  props: { title: "Dashboard" }
+  children:
+    - ref: layout/grid@1.0.0
+      props:
+        areas: |
+          chart chart
+          table kpi
+          table todo
+      children:
+        chart: { ref: charts/line@1.0.0,   data: { source: analytics.revenue, params: { period: 30d } } }
+        table: { ref: tables/simple@1.0.0, data: { source: sales.by_region } }
+        kpi:   { ref: kpi/number@1.0.0,    data: { source: sales.total } }
+        todo:  { ref: todo/list@1.0.0,     data: { source: tasks.mine } }
+```
+
+## An override
+
+```yaml
+# overrides/user-giulia.yaml
+extends: home
+why: "Reports every Monday, wants the KPI on top"
+patches:
+  - { op: set-areas, target: layout/grid, areas: "kpi kpi\nchart chart\ntable todo\n" }
+```
+
+Ops: `set-areas`, `set-props`, `set-data`, `replace`, `remove`, `insert`, `move`. Targets are component names or child names, never element ids. Role overrides (`role-<name>.yaml`) apply first, user overrides (`user-<name>.yaml`) second.
+
+## The gate
+
+Every page, override and agent proposal goes through the same validator: the component exists with that version, the data source exists, the user's role may read it, the source's returned type is accepted by the component, params are allowed, props match the component schema, grid areas and children match. An invalid node renders as a fallback box with the reason; the rest of the page renders.
+
+## Component props
+
+Each entry in `components/registry.yaml` can declare a `props:` schema. Types: `string`, `number`, `boolean`, `text` (multiline string), `enum[a,b,c]`, `string[]`, `number[]`; a trailing `?` makes a prop optional. Undeclared props, missing required props, wrong types and values outside an enum are errors. Entries without `props:` accept anything; `data` and `names` are injected by the resolver and never checked. Containers set `container: true`.
+
+```yaml
+layout/card:
+  description: Card with an optional title wrapping its children
+  container: true
+  props: { title: string?, tone: "enum[info,warn]?" }
+  versions: { "1.0.0": { impl: ./Card.jsx } }
+```
+
+`buildCatalog(registry, z)` turns the registry into a json-render catalog (Zod props, `slots: ["default"]` on containers) for `defineCatalog(schema, ...)`.
+
+## Next.js
+
+Full example in [`examples/nextjs`](examples/nextjs). Add `transpilePackages: ["@aeratic/pagetailor"]` to `next.config.js` and run `npx pagetailor registry` to generate `pagetailor/components/index.js` (rerun it when `registry.yaml` changes).
+
+```js
+// app/api/page/[page]/route.js  (server only)
+import { join } from "node:path";
+import { resolve } from "@aeratic/pagetailor";
+export async function GET(req, { params }) {
+  const q = req.nextUrl.searchParams, { page } = await params;
+  return Response.json({ page, ...(await resolve(join(process.cwd(), "pagetailor"), page, { user: q.get("user"), role: q.get("role") })) });
+}
+
+// app/PageClient.jsx  ("use client": import only from /client, never the package root)
+import { Page } from "@aeratic/pagetailor/client";
+import { registry } from "../pagetailor/components/index.js";
+// fetch(`/api/page/home?user=giulia&role=marketing`) then <Page resolved={json} registry={registry} />
+```
+
+## Caching
+
+`resolve` keeps resolved pages in memory per page/user/role and returns them without calling data sources again while the project files involved are unchanged. Pass `{ fresh: true }` to bypass it, or `{ maxAge: ms }` to expire entries (default 0, no time limit; `pagetailor dev` uses 2000). `clearResolveCache()` empties it.
+
+## Proposals and approval
+
+Changes go through `propose(root, { name, override, author, role })`, which first runs the gate: the override is applied to its page (`extends` is required) and validated for the role it targets. A failing gate returns `{ ok: false, errors }` and records nothing.
+
+- A user's own override (`user-ann` proposed by `ann`) is applied immediately.
+- Anything shared (a `role-*` override, or another user's override) is stored as `pending` and the override file is left untouched.
+- Each page lists the roles allowed to approve it in `manifest.yaml`: `owners: { home: [admin] }`.
+- `approve(root, { name, version, approver, approverRole })` re-runs the gate and commits a new applied version with `approvedFrom`; the proposal is marked `approved`. `reject(root, { name, version, approver, approverRole, reason })` marks it `rejected`. `listPending(root)` lists open proposals, newest first.
+
+Dev server routes: `POST /api/propose`, `GET /api/pending`, `POST /api/approve`, `POST /api/reject` (400 with `{ ok: false, errors }` when the gate or owner check fails). `POST /api/override` still commits directly.
+
+## Reorder editor
+
+In `pagetailor dev`, set a user, then click **Edit layout** in the header: the cells of every `layout/grid` get a dashed outline and become draggable. Drop one cell on another to swap their area names (all occurrences of both) in `areas`.
+
+Each drop sends a `set-areas` patch through `POST /api/propose` as `user-<user>` (author = that user, `why: "reordered in the editor"`), merged into that user's existing override: an earlier `set-areas` on the same grid is replaced, other patches are kept. The user's own override applies at once and the page re-fetches; gate errors are shown in red.
+
+In your own app wrap `<Page>` in `<EditorContext.Provider value={{ editing, propose }}>` with values from `useEditor({ page, user, role, why, onApplied })` (all from `@aeratic/pagetailor/client`); the base Grid uses `EditableGrid` and renders as usual outside editing. The resolver adds a hidden `__pt: { path, name, container }` prop to every element for this mapping. This first version only swaps whole cells; resizing and moving across grids are not supported yet.
+
+## The agent
+
+A user asks in natural language ("put the KPI at the top"); the agent turns it into override patches that go through the same gate as everything else. It never writes files itself.
+
+1. `buildAgentPrompt(root, { page, user, role, request })` returns `{ system, user }`: the rules, the catalog visible to that role (`describeCatalog`: components with props and accepted type, readable data sources, the op vocabulary) and the current page for that user (`describePage`: the resolved tree with child names and grid areas).
+2. The model answers with JSON only: `{ "why", "patches": [...] }`, or `{ "refuse" }` when the catalog or the role cannot satisfy the request. `parseAgentReply` tolerates code fences and surrounding prose.
+3. `runAgent(root, { page, user, role, request, complete })` appends the patches to the user's existing override for that page (same merge rule as the editor) and calls `propose` as `user-<user>`: applied at once for the own user, pending otherwise.
+4. If the gate rejects, the gate errors are sent back once ("The previous patch was rejected: ... Fix it.") and the result is proposed again. The result reports `attempts`.
+
+`complete` is any `async ({ system, user }) => text`, so any model or SDK works; pagetailor depends on none. `anthropicComplete({ apiKey, model })` is a built-in fetch call to the Anthropic Messages API (`claude-sonnet-5-5` by default).
+
+In `pagetailor dev`, set `ANTHROPIC_API_KEY` (and optionally `PAGETAILOR_MODEL`) and use the "Change this page…" box in the header: `POST /api/agent` with `{ page, user, role, request }` (503 without the key). `GET /api/agent/prompt?page=&user=&role=&request=` returns the built prompt for debugging.
+
+## Pages as answers
+
+A user asks a question ("how did sales go this week?") and the agent composes a brand-new page from the catalog instead of changing an existing one.
+
+1. `runAsk(root, { user, role, request, complete })` starts from an empty `layout/stack`, asks the model for `{ "title", "why", "patches" }` using only `insert` ops (cards, grids, widgets), applies them in memory and resolves the tree with `resolve(root, "answer", { user, role, tree })`. Gate or resolve errors are sent back once, like `runAgent`.
+2. The result (`{ title, why, tree, resolved }`) is rendered as is. Nothing is written to disk until the user decides.
+3. Keep as page: `keepAnswer(root, { user, role, title, tree, why })` writes `pages/<slug>.yaml` with `owner: <user>` and adds the slug to `manifest.pages` (slugs are made unique with `-2`, `-3`).
+4. Pin to home: `pinAnswer(root, { user, role, title, tree, why })` proposes, as `user-<user>`, an `insert` of a `layout/card` with the answer's widgets into the home's main container; on a grid it gets its own full-width row at the bottom. Same gate and proposal rules as any override.
+
+Both go through the gate with the user's role first. In `pagetailor dev` use the "Ask…" box: `POST /api/ask` `{ user, role, request }` (503 without `ANTHROPIC_API_KEY`), `POST /api/ask/keep` and `POST /api/ask/pin` with `{ user, role, title, tree, why }`.
+
+## Status
+
+0.4: engine, CLI (`init`, `validate`, `registry`, `dev`), history with rollback, proposals with owner approval, reorder editor, agent with a pluggable model adapter, pages as answers.
+
+License: MIT.

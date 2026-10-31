@@ -1,0 +1,23 @@
+# Typed data sources. A component binds to a source only if it accepts the type the source returns
+# and the user's role is listed. Implementations live in data/sources.mjs, keyed by the same names.
+analytics.revenue:
+  description: "Revenue over time"
+  params: { period: [7d, 30d, 90d] }
+  returns: timeseries<money>
+  roles: [admin, marketing]
+sales.total:
+  description: "Total sales for the current month"
+  returns: money
+  roles: [admin, marketing]
+sales.by_region:
+  description: "Sales grouped by region"
+  returns: table<region>
+  roles: [admin, marketing]
+tasks.mine:
+  description: "Tasks assigned to the current user"
+  returns: list<task>
+  roles: ["*"]
+stock.levels:
+  description: "Warehouse stock levels"
+  returns: table<stock>
+  roles: [admin, magazzino]

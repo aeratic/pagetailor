@@ -1,0 +1,25 @@
+name: test
+on: [push, pull_request]
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: { node: [20, 22, 24] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ matrix.node }}", cache: npm }
+      - run: npm ci
+      - run: npm test
+  pack-and-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm pack
+      - run: |
+          mkdir /tmp/app && cd /tmp/app && npm init -y
+          npm install react@19.2.3 react-dom@19.2.3 $GITHUB_WORKSPACE/aeratic-pagetailor-*.tgz
+          npx pagetailor init && npx pagetailor validate

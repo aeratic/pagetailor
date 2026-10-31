@@ -1,0 +1,5 @@
+sales.trend:   { returns: timeseries<money>, roles: [marketing, direzione] }
+sales.by_region: { returns: table<region>, roles: [marketing, direzione] }
+sales.total:   { returns: money, roles: [marketing, direzione] }
+tasks.mine:    { returns: list<task>, roles: [marketing, magazzino, direzione] }
+stock.levels:  { returns: table<stock>, roles: [magazzino] }

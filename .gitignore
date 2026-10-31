@@ -1,0 +1,6 @@
+node_modules
+spike/node_modules
+spike/run.mjs
+spike/pt/.history
+examples/*/node_modules
+examples/*/.next

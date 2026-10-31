@@ -1,0 +1,16 @@
+{
+  "name": "pagetailor-nextjs-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@aeratic/pagetailor": "file:../..",
+    "next": "15.5.27",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  }
+}

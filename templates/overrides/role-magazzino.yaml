@@ -1,0 +1,15 @@
+extends: home
+why: "Il magazzino non vede le vendite: al posto del grafico le giacenze"
+patches:
+  - op: replace
+    target: chart
+    with: { ref: tables/simple@1.0.0, props: { title: "Giacenze" }, data: { source: stock.levels } }
+  - op: remove
+    target: table
+  - op: remove
+    target: kpi
+  - op: set-areas
+    target: layout/grid
+    areas: |
+      chart chart
+      todo  todo

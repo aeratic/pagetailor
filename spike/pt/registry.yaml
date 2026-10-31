@@ -1,0 +1,6 @@
+layout/grid:   { versions: { "1.0.0": {} } }
+layout/card:   { versions: { "1.0.0": {} } }
+charts/line:   { accepts: timeseries<money>, versions: { "1.0.0": {} } }
+tables/simple: { accepts: any, versions: { "1.0.0": {} } }
+kpi/number:    { accepts: money, versions: { "1.0.0": {} } }
+todo/list:     { accepts: list<task>, versions: { "1.0.0": {} } }
